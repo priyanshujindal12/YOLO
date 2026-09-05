@@ -4,7 +4,7 @@ import { socket } from "../lib/socket";
 import ShinyText from "../components/ShinyText";
 import SplitText from "../components/SplitText";
 import SpecularButton from "../components/SpecularButton";
-
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 type User = {
   id: string;
   name: string;
@@ -29,7 +29,7 @@ export function Home() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:8080/api/auth/logout", { credentials: "include", method: "POST" });
+      await fetch(`${API_BASE_URL}/api/auth/logout`, { credentials: "include", method: "POST" });
     } catch (_) { }
     navigate("/");
   };
@@ -37,7 +37,7 @@ export function Home() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/auth/me", {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           credentials: "include",
         });
         if (!response.ok) { navigate("/"); return; }

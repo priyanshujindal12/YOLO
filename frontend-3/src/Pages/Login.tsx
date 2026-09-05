@@ -1,8 +1,8 @@
 import SplitText from "../components/SplitText";
-
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 export function Login() {
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8080/api/auth/google";
+    window.location.href = `${API_BASE_URL}/api/auth/google`;
   };
 
   return (

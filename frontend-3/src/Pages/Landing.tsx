@@ -4,7 +4,7 @@ import SoftAurora from "../components/SoftAurora";
 import SplitText from "../components/SplitText";
 import ShinyText from "../components/ShinyText";
 import SpecularButton from "../components/SpecularButton";
-
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
 export function Landing() {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ export function Landing() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/auth/me", {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           credentials: "include",
         });
         if (response.ok) {
