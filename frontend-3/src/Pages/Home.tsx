@@ -53,10 +53,20 @@ export function Home() {
     if (!user) return;
     if (!socket.connected) socket.connect();
 
-    const handlePartnerFound = (data: { roomId: string }) => {
-      setStatus("found");
-      setTimeout(() => navigate(`/chat/${data.roomId}`), 400);
-    };
+   const handlePartnerFound = (data: {roomId: string;initiator: boolean;}) => {
+  console.log("Partner found in Home:",data.roomId,"Initiator:",data.initiator
+  );
+
+  setStatus("found");
+
+  setTimeout(() => {
+    navigate(`/chat/${data.roomId}`, {
+      state: {
+        initiator: data.initiator,
+      },
+    });
+  }, 1000);
+};
     const handleWaitingForPartner = () => setStatus("searching");
 
     socket.on("partner-found", handlePartnerFound);
