@@ -38,7 +38,7 @@ const socketRooms = new Map<string, string>();
 const app = express();
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "https://yololive.fun",
     credentials: true,
   })
 );
@@ -57,8 +57,8 @@ const sessionMiddleware = session({
 app.use(sessionMiddleware);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: {
-    origin: "http://localhost:5173",
+    cors: {
+      origin: "https://yololive.fun",
     credentials: true,
   },
 });

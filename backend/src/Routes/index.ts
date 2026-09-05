@@ -69,7 +69,7 @@ apiRouter.get("/auth/google/callback", async (req, res) => {
       },
     });
     req.session.userId = user.id;
-    return res.redirect("http://localhost:5173/home");
+    return res.redirect("https://yololive.fun/home");
   } catch (error) {
     return res.status(500).json({
       message: "Google authentication failed",

@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { socket } from "../lib/socket";
-import { useLocation } from "react-router-dom";
-import { PhoneOff } from "lucide-react";
+import { PhoneOff, MessageCircle, X } from "lucide-react";
 import { VideoCard } from "../components/VideoCard";
 import { CallControls } from "../components/CallControls";
 import { ChatPanel } from "../components/ChatPanel";
@@ -25,43 +24,34 @@ const rtcConfiguration: RTCConfiguration = {
 export function Chat() {
   const location = useLocation();
   const navigate = useNavigate();
-
   const initiator: boolean = location.state?.initiator ?? false;
-  // My profile info (passed from Home)
-  const userProfile: { name?: string; profilePicture?: string | null } =
-    location.state?.user ?? {};
-  // Partner's first name (passed from Home via backend)
+  const userProfile: { name?: string; profilePicture?: string | null } = location.state?.user ?? {};
   const partnerName: string = location.state?.partnerName ?? "Stranger";
 
-  // ── UI state ──────────────────────────────────────────────────────────────
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [remoteConnected, setRemoteConnected] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [bothUsersReady, setBothUsersReady] = useState(false);
-
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [partnerCameraOn, setPartnerCameraOn] = useState(true);
   const [partnerMicOn, setPartnerMicOn] = useState(true);
 
-  // ── DOM refs ──────────────────────────────────────────────────────────────
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-
-  // ── WebRTC refs ───────────────────────────────────────────────────────────
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
   const pendingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
-
   const cameraReadyRef = useRef(false);
   const offerCreatedRef = useRef(false);
   const isInitiatorRef = useRef(initiator);
 
-  useEffect(() => { isInitiatorRef.current = initiator; }, [initiator]);
-
-  // ── WebRTC helpers ────────────────────────────────────────────────────────
+  useEffect(() => {
+    isInitiatorRef.current = initiator;
+  }, [initiator]);
 
   const createPeerConnection = (): RTCPeerConnection | null => {
     if (peerConnectionRef.current) return peerConnectionRef.current;
@@ -69,23 +59,27 @@ export function Chat() {
     if (!stream) return null;
 
     const pc = new RTCPeerConnection(rtcConfiguration);
-    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     pc.ontrack = (e) => {
-      const rs = e.streams[0];
-      if (remoteVideoRef.current && rs) {
-        remoteVideoRef.current.srcObject = rs;
+      const remoteStream = e.streams[0];
+      if (remoteVideoRef.current && remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
         setRemoteConnected(true);
       }
     };
+
     pc.onicecandidate = (e) => {
       if (e.candidate) socket.emit("ice-candidate", e.candidate.toJSON());
     };
+
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") setRemoteConnected(true);
-      if (["disconnected", "failed", "closed"].includes(pc.connectionState))
+      if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
         setRemoteConnected(false);
+      }
     };
+
     peerConnectionRef.current = pc;
     return pc;
   };
@@ -93,8 +87,10 @@ export function Chat() {
   const flushPendingIce = async (pc: RTCPeerConnection) => {
     const list = [...pendingIceCandidatesRef.current];
     pendingIceCandidatesRef.current = [];
-    for (const c of list) {
-      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+    for (const candidate of list) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (_) {}
     }
   };
 
@@ -105,7 +101,9 @@ export function Chat() {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       socket.emit("webrtc-offer", pc.localDescription);
-    } catch (e) { console.error("[webrtc] offer:", e); }
+    } catch (e) {
+      console.error("[webrtc] offer:", e);
+    }
   };
 
   const handleOffer = async (offer: RTCSessionDescriptionInit) => {
@@ -117,55 +115,68 @@ export function Chat() {
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit("webrtc-answer", pc.localDescription);
-    } catch (e) { console.error("[webrtc] handle offer:", e); }
+    } catch (e) {
+      console.error("[webrtc] handle offer:", e);
+    }
   };
-
-  // ── Camera startup ────────────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false;
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         cameraReadyRef.current = true;
         setCameraReady(true);
         if (pendingOfferRef.current) {
-          const q = pendingOfferRef.current;
+          const pendingOffer = pendingOfferRef.current;
           pendingOfferRef.current = null;
-          await handleOffer(q);
+          await handleOffer(pendingOffer);
         }
-      } catch (e) { console.error("[media] camera:", e); }
+      } catch (e) {
+        console.error("[media] camera:", e);
+      }
     };
+
     startCamera();
+
     return () => {
       cancelled = true;
       peerConnectionRef.current?.close();
       peerConnectionRef.current = null;
-      localStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
       cameraReadyRef.current = false;
       pendingIceCandidatesRef.current = [];
       pendingOfferRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ── Socket listeners ──────────────────────────────────────────────────────
 
   useEffect(() => {
     const onPartnerLeft = () => navigate("/home");
-    const onMessage = (msg: string) =>
-      setMessages((p) => [...p, { id: crypto.randomUUID(), text: msg, sender: "partner" }]);
-    const onIce = async (c: RTCIceCandidateInit) => {
+    const onMessage = (msg: string) => {
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), text: msg, sender: "partner" }]);
+    };
+    const onIce = async (candidate: RTCIceCandidateInit) => {
       const pc = peerConnectionRef.current;
-      if (!pc || !pc.remoteDescription) { pendingIceCandidatesRef.current.push(c); return; }
-      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+      if (!pc || !pc.remoteDescription) {
+        pendingIceCandidatesRef.current.push(candidate);
+        return;
+      }
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (_) {}
     };
     const onOffer = async (offer: RTCSessionDescriptionInit) => {
-      if (!cameraReadyRef.current) { pendingOfferRef.current = offer; return; }
+      if (!cameraReadyRef.current) {
+        pendingOfferRef.current = offer;
+        return;
+      }
       await handleOffer(offer);
     };
     const onAnswer = async (answer: RTCSessionDescriptionInit) => {
@@ -174,11 +185,13 @@ export function Chat() {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
         await flushPendingIce(pc);
-      } catch (e) { console.error("[webrtc] answer:", e); }
+      } catch (e) {
+        console.error("[webrtc] answer:", e);
+      }
     };
     const onBothReady = () => setBothUsersReady(true);
-    const onPartnerCamera = (d: { enabled: boolean }) => setPartnerCameraOn(d.enabled);
-    const onPartnerMic = (d: { enabled: boolean }) => setPartnerMicOn(d.enabled);
+    const onPartnerCamera = (data: { enabled: boolean }) => setPartnerCameraOn(data.enabled);
+    const onPartnerMic = (data: { enabled: boolean }) => setPartnerMicOn(data.enabled);
 
     socket.on("partner-left", onPartnerLeft);
     socket.on("receive-message", onMessage);
@@ -188,6 +201,7 @@ export function Chat() {
     socket.on("both-users-ready", onBothReady);
     socket.on("partner-camera-state", onPartnerCamera);
     socket.on("partner-mic-state", onPartnerMic);
+
     socket.emit("chat-ready");
 
     return () => {
@@ -200,31 +214,29 @@ export function Chat() {
       socket.off("partner-camera-state", onPartnerCamera);
       socket.off("partner-mic-state", onPartnerMic);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   useEffect(() => {
-    if (!cameraReady || !bothUsersReady || !isInitiatorRef.current) return;
-    if (offerCreatedRef.current) return;
+    if (!cameraReady || !bothUsersReady || !isInitiatorRef.current || offerCreatedRef.current) return;
     offerCreatedRef.current = true;
     createOffer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraReady, bothUsersReady]);
 
-  // ── Action handlers ───────────────────────────────────────────────────────
-
-  const handleLeaveChat = () => { socket.emit("leave-chat"); navigate("/home"); };
+  const handleLeaveChat = () => {
+    socket.emit("leave-chat");
+    navigate("/home");
+  };
 
   const handleToggleMic = () => {
     const enabled = !isMicOn;
-    localStreamRef.current?.getAudioTracks().forEach((t) => { t.enabled = enabled; });
+    localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = enabled; });
     setIsMicOn(enabled);
     socket.emit("mic-state", { enabled });
   };
 
   const handleToggleCamera = () => {
     const enabled = !isCameraOn;
-    localStreamRef.current?.getVideoTracks().forEach((t) => { t.enabled = enabled; });
+    localStreamRef.current?.getVideoTracks().forEach((track) => { track.enabled = enabled; });
     setIsCameraOn(enabled);
     socket.emit("camera-state", { enabled });
   };
@@ -233,60 +245,46 @@ export function Chat() {
     const trimmed = message.trim();
     if (!trimmed) return;
     socket.emit("send-message", trimmed);
-    setMessages((p) => [...p, { id: crypto.randomUUID(), text: trimmed, sender: "me" }]);
+    setMessages((prev) => [...prev, { id: crypto.randomUUID(), text: trimmed, sender: "me" }]);
     setMessage("");
   };
 
   const userName = userProfile.name?.split(" ")[0] ?? "You";
   const userInitial = userName.charAt(0).toUpperCase();
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#08080f] text-white">
-
-      {/* Ambient glow */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute -left-64 -top-64 h-[700px] w-[700px] rounded-full bg-purple-700/8 blur-[140px]" />
         <div className="absolute -bottom-64 -right-64 h-[700px] w-[700px] rounded-full bg-violet-700/8 blur-[140px]" />
       </div>
 
-      {/* ── Navbar ───────────────────────────────────────────────────────── */}
       <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-white/[0.05] bg-black/30 px-5 py-3 backdrop-blur-xl">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 text-sm shadow-lg shadow-purple-900/40">
-            ⚡
-          </div>
+          
           <span className="text-lg font-extrabold tracking-tight">Yolo</span>
         </div>
 
-        {/* Status pill */}
         <div className="hidden items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-4 py-1.5 sm:flex">
           <span className={`h-2 w-2 rounded-full ${remoteConnected ? "bg-green-400" : "animate-pulse bg-purple-400"}`} />
-          <span className="text-[11px] font-medium tracking-widest text-white/35 uppercase">
+          <span className="text-[11px] font-medium uppercase tracking-widest text-white/35">
             {remoteConnected ? `Connected with ${partnerName}` : !cameraReady ? "Starting camera" : "Connecting…"}
           </span>
         </div>
 
-        {/* Profile + leave */}
         <div className="flex items-center gap-3">
-          {userName !== "You" && (
-            <span className="hidden text-sm text-white/35 sm:block">{userName}</span>
-          )}
+          {userName !== "You" && <span className="hidden text-sm text-white/35 sm:block">{userName}</span>}
           <Avatar className="h-8 w-8 border border-white/10">
-            {userProfile.profilePicture ? (
-              <AvatarImage src={userProfile.profilePicture} alt={userName} />
-            ) : null}
+            {userProfile.profilePicture && <AvatarImage src={userProfile.profilePicture} alt={userName} />}
             <AvatarFallback className="bg-gradient-to-br from-gray-700 to-gray-800 text-xs font-bold text-gray-300">
               {userInitial}
             </AvatarFallback>
           </Avatar>
-
           <Button
             id="leave-chat-btn"
             onClick={handleLeaveChat}
             size="icon"
-            className="h-8 w-8 rounded-full bg-red-500/15 text-red-400 ring-1 ring-red-500/30 hover:bg-red-500 hover:text-white transition-all duration-200"
+            className="h-8 w-8 rounded-full bg-red-500/15 text-red-400 ring-1 ring-red-500/30 transition-all duration-200 hover:bg-red-500 hover:text-white"
             title="Leave chat"
           >
             <PhoneOff className="h-3.5 w-3.5" />
@@ -294,16 +292,9 @@ export function Chat() {
         </div>
       </header>
 
-      {/* ── Body: 50/50 split ─────────────────────────────────────────────── */}
       <div className="relative z-10 flex min-h-0 flex-1">
-
-        {/* ── Left: Video workspace — 50% ───────────────────────────────── */}
-        <section className="flex w-1/2 flex-col px-4 py-4">
-
-          {/* Vertically stacked, equal height — STRANGER on top, YOU on bottom */}
+        <section className="relative flex min-h-0 flex-1 flex-col p-2 lg:w-1/2 lg:flex-none lg:px-4 lg:py-4">
           <div className="grid min-h-0 flex-1 grid-rows-2 gap-3">
-
-            {/* Stranger video — TOP */}
             <VideoCard
               videoRef={remoteVideoRef}
               label="Stranger"
@@ -312,29 +303,28 @@ export function Chat() {
               connecting={!remoteConnected}
               micMuted={!partnerMicOn}
             />
-
-            {/* My video — BOTTOM */}
-            <VideoCard
-              videoRef={localVideoRef}
-              label="You"
-              name={userName}
-              muted
-              profilePicture={userProfile.profilePicture}
-              cameraOff={!isCameraOn}
-            />
+            <div className="relative min-h-0">
+              <VideoCard
+                videoRef={localVideoRef}
+                label="You"
+                name={userName}
+                muted
+                profilePicture={userProfile.profilePicture}
+                cameraOff={!isCameraOn}
+              />
+              <div className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2">
+                <CallControls
+                  isMicOn={isMicOn}
+                  isCameraOn={isCameraOn}
+                  onToggleMic={handleToggleMic}
+                  onToggleCamera={handleToggleCamera}
+                />
+              </div>
+            </div>
           </div>
-
-          {/* Mic + Camera controls below videos */}
-          <CallControls
-            isMicOn={isMicOn}
-            isCameraOn={isCameraOn}
-            onToggleMic={handleToggleMic}
-            onToggleCamera={handleToggleCamera}
-          />
         </section>
 
-        {/* ── Right: Chat panel — fills remaining space ─────────────────── */}
-        <div className="flex-1 min-w-0">
+        <div className="hidden min-w-0 flex-1 lg:flex">
           <ChatPanel
             messages={messages}
             message={message}
@@ -347,6 +337,43 @@ export function Chat() {
             partnerName={partnerName}
           />
         </div>
+
+        {!isChatOpen && (
+          <Button
+            onClick={() => setIsChatOpen(true)}
+            size="icon"
+            className="absolute bottom-5 right-5 z-30 h-12 w-12 rounded-full bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-purple-500 lg:hidden"
+            title="Open chat"
+          >
+            <MessageCircle className="h-5 w-5" />
+          </Button>
+        )}
+
+        {isChatOpen && (
+          <div className="absolute inset-y-0 right-0 z-40 w-[85%] max-w-sm border-l border-white/10 bg-[#0b0912]/95 shadow-2xl backdrop-blur-xl lg:hidden">
+            <div className="relative flex h-full flex-col">
+              <Button
+                onClick={() => setIsChatOpen(false)}
+                size="icon"
+                className="absolute right-3 top-3 z-50 h-9 w-9 rounded-full bg-white/10 hover:bg-white/20"
+                title="Close chat"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <ChatPanel
+                messages={messages}
+                message={message}
+                onMessageChange={setMessage}
+                onSend={handleSendMessage}
+                remoteConnected={remoteConnected}
+                partnerMicOn={partnerMicOn}
+                userName={userName}
+                userProfilePicture={userProfile.profilePicture}
+                partnerName={partnerName}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
