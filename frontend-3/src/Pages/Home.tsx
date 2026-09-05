@@ -54,18 +54,14 @@ export function Home() {
     if (!socket.connected) socket.connect();
 
    const handlePartnerFound = (data: {roomId: string;initiator: boolean;}) => {
-  console.log("Partner found in Home:",data.roomId,"Initiator:",data.initiator
-  );
-
+  console.log("Partner found in Home:", data.roomId, "Initiator:", data.initiator);
   setStatus("found");
-
-  setTimeout(() => {
-    navigate(`/chat/${data.roomId}`, {
-      state: {
-        initiator: data.initiator,
-      },
-    });
-  }, 1000);
+  // Navigate immediately — no delay that widens the race window
+  navigate(`/chat/${data.roomId}`, {
+    state: {
+      initiator: data.initiator,
+    },
+  });
 };
     const handleWaitingForPartner = () => setStatus("searching");
 
