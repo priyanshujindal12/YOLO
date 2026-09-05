@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { socket } from "../lib/socket";
+import ShinyText from "../components/ShinyText";
+import SplitText from "../components/SplitText";
+import SpecularButton from "../components/SpecularButton";
 
 type User = {
   id: string;
@@ -27,7 +30,7 @@ export function Home() {
   const handleLogout = async () => {
     try {
       await fetch("http://localhost:8080/api/auth/logout", { credentials: "include", method: "POST" });
-    } catch (_) {}
+    } catch (_) { }
     navigate("/");
   };
 
@@ -54,22 +57,22 @@ export function Home() {
     if (!user) return;
     if (!socket.connected) socket.connect();
 
-   const handlePartnerFound = (data: { roomId: string; initiator: boolean; partnerName?: string }) => {
-  console.log("Partner found in Home:", data.roomId, "Initiator:", data.initiator, "Partner:", data.partnerName);
-  setStatus("found");
-  navigate(`/chat/${data.roomId}`, {
-    state: {
-      initiator: data.initiator,
-      partnerName: data.partnerName ?? "Stranger",
-      user: user
-        ? {
-            name: user.name,
-            profilePicture: user.profilePicture,
-          }
-        : undefined,
-    },
-  });
-};
+    const handlePartnerFound = (data: { roomId: string; initiator: boolean; partnerName?: string }) => {
+      console.log("Partner found in Home:", data.roomId, "Initiator:", data.initiator, "Partner:", data.partnerName);
+      setStatus("found");
+      navigate(`/chat/${data.roomId}`, {
+        state: {
+          initiator: data.initiator,
+          partnerName: data.partnerName ?? "Stranger",
+          user: user
+            ? {
+              name: user.name,
+              profilePicture: user.profilePicture,
+            }
+            : undefined,
+        },
+      });
+    };
     const handleWaitingForPartner = () => setStatus("searching");
 
     socket.on("partner-found", handlePartnerFound);
@@ -153,22 +156,21 @@ export function Home() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              background: "linear-gradient(135deg, #a855f7, #e100ff)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "15px",
-            }}
-          >
-            ⚡
-          </div>
+
           <span style={{ fontSize: "20px", fontWeight: 800, letterSpacing: "-0.03em", color: "#fff" }}>
-            Yolo
+            <ShinyText
+
+              text="YOLO"
+              speed={2}
+              delay={0}
+              color="#b5b5b5"
+              shineColor="#ffffff"
+              spread={120}
+              direction="left"
+              yoyo={false}
+              pauseOnHover={false}
+              disabled={false}
+            />
           </span>
         </div>
 
@@ -180,32 +182,29 @@ export function Home() {
               style={{ width: "36px", height: "36px", borderRadius: "50%", border: "2px solid rgba(168,85,247,0.4)" }}
             />
           )}
-          <span style={{ fontSize: "14px", fontWeight: 500, color: "rgba(255,255,255,0.7)" }}>
-            {user.name}
-          </span>
-          <button
+         
+          <SpecularButton
+            size="md"
+            radius={18}
+          
+            tint="#ffffff"
+            tintOpacity={0}
+            blur={0}
+            textColor="#f5f5f5"
+            lineColor="#ffffff"
+            baseColor="#525252"
+            intensity={1}
+            shineSize={10}
+            shineFade={40}
+            thickness={1}
+            speed={0.35}
+            followMouse
+            proximity={250}
+            autoAnimate={false}
             onClick={handleLogout}
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "10px",
-              color: "rgba(255,255,255,0.5)",
-              padding: "6px 14px",
-              fontSize: "13px",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "rgba(255,100,100,0.9)";
-              e.currentTarget.style.borderColor = "rgba(255,100,100,0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "rgba(255,255,255,0.5)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-            }}
           >
-            Sign out
-          </button>
+             Logout
+          </SpecularButton>
         </div>
       </nav>
 
@@ -228,27 +227,21 @@ export function Home() {
           Hey {user.name.split(" ")[0]} 👋
         </p>
 
-        <h1
-          style={{
-            fontSize: "clamp(2.5rem, 6vw, 5rem)",
-            fontWeight: 900,
-            letterSpacing: "-0.04em",
-            color: "#ffffff",
-            lineHeight: 1.1,
-            marginBottom: "20px",
-          }}
-        >
-          Ready to{" "}
-          <span
-            style={{
-              background: "linear-gradient(135deg, #a855f7, #e100ff)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            connect?
-          </span>
+        <h1 className=" text-4xl font-bold text-center mb-6" style={{ color: "#fff", lineHeight: 1.2 }}>
+          <SplitText
+            text="Ready to meet someone new?"
+            className="text-16xl font-semibold text-center"
+            delay={50}
+            duration={1.25}
+            ease="power3.out"
+            splitType="chars"
+            from={{ opacity: 0, y: 40 }}
+            to={{ opacity: 1, y: 0 }}
+            threshold={0.1}
+            rootMargin="-100px"
+            textAlign="center"
+
+          />
         </h1>
 
         <p
@@ -264,87 +257,47 @@ export function Home() {
         </p>
 
         {/* Find Button */}
-        <button
-          onClick={handleFindPartner}
-          disabled={status === "searching"}
-          style={{
-            position: "relative",
-            background:
-              status === "searching"
-                ? "rgba(168,85,247,0.2)"
-                : "linear-gradient(135deg, #a855f7, #e100ff)",
-            border: status === "searching" ? "1px solid rgba(168,85,247,0.4)" : "none",
-            borderRadius: "20px",
-            color: "#ffffff",
-            padding: "20px 56px",
-            fontSize: "18px",
-            fontWeight: 700,
-            cursor: status === "searching" ? "not-allowed" : "pointer",
-            letterSpacing: "-0.01em",
-            boxShadow:
-              status === "searching"
-                ? "none"
-                : "0 0 60px rgba(168,85,247,0.35), 0 12px 40px rgba(225,0,255,0.2)",
-            transition: "all 0.3s ease",
-          }}
-          onMouseEnter={(e) => {
-            if (status !== "searching") {
-              e.currentTarget.style.transform = "translateY(-3px) scale(1.02)";
-              e.currentTarget.style.boxShadow =
-                "0 0 80px rgba(168,85,247,0.5), 0 16px 50px rgba(225,0,255,0.3)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0) scale(1)";
-            e.currentTarget.style.boxShadow =
-              "0 0 60px rgba(168,85,247,0.35), 0 12px 40px rgba(225,0,255,0.2)";
-          }}
-        >
-          {status === "searching" ? (
-            <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span className="yolo-spinner-sm" />
-              Finding someone...
-            </span>
-          ) : status === "found" ? (
-            "Match found! ✨"
-          ) : (
-            "Find Someone"
-          )}
-        </button>
-
-        {/* Features */}
+        {/* Find Button */}
         <div
           style={{
-            marginTop: "80px",
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "20px",
-            maxWidth: "680px",
-            width: "100%",
+            position: "relative",
+            opacity: status === "searching" ? 0.7 : 1,
+            transition: "opacity 0.3s ease",
           }}
         >
-          {[
-            { icon: "🎭", title: "Anonymous", desc: "No name, no face, just you." },
-            { icon: "⚡", title: "Instant", desc: "Get matched in seconds." },
-            { icon: "🌍", title: "Global", desc: "Meet people worldwide." },
-          ].map((f) => (
-            <div
-              key={f.title}
-              style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: "16px",
-                padding: "24px 20px",
-                textAlign: "center",
-                backdropFilter: "blur(10px)",
-              }}
-            >
-              <div style={{ fontSize: "28px", marginBottom: "10px" }}>{f.icon}</div>
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "#ffffff", marginBottom: "6px" }}>{f.title}</div>
-              <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", lineHeight: 1.5 }}>{f.desc}</div>
+          {status === "idle" && (
+            <SpecularButton onClick={handleFindPartner}>
+              Get Started
+            </SpecularButton>
+          )}
+
+          {status === "searching" && (
+            <div style={{ pointerEvents: "none" }}>
+              <SpecularButton onClick={() => { }}>
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                  }}
+                >
+                  <span className="yolo-spinner-sm" />
+                  Finding someone...
+                </span>
+              </SpecularButton>
             </div>
-          ))}
+          )}
+
+          {status === "found" && (
+            <div style={{ pointerEvents: "none" }}>
+              <SpecularButton onClick={() => { }}>
+                Match found! ✨
+              </SpecularButton>
+            </div>
+          )}
         </div>
+        <div className="mb-60"></div>
       </main>
 
       <style>{`

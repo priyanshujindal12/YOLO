@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import SoftAurora from "../components/SoftAurora";
 import SplitText from "../components/SplitText";
 import ShinyText from "../components/ShinyText";
+import SpecularButton from "../components/SpecularButton";
 
 
 export function Landing() {
@@ -116,32 +117,26 @@ export function Landing() {
             className="nav-logo-shiny"
           />
         </div>
-
-        <button
-          onClick={() => navigate("/login")}
-          style={{
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: "12px",
-            color: "rgba(255,255,255,0.85)",
-            padding: "8px 20px",
-            fontSize: "14px",
-            fontWeight: 500,
-            cursor: "pointer",
-            backdropFilter: "blur(10px)",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(168,85,247,0.2)";
-            e.currentTarget.style.borderColor = "rgba(168,85,247,0.5)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-          }}
-        >
+        <SpecularButton
+          size="lg"
+          radius={18}
+          tint="#ffffff"
+          tintOpacity={0}
+          blur={0}
+          textColor="#f5f5f5"
+          lineColor="#7C3AED"
+          baseColor="#525252"
+          intensity={1}
+          shineSize={10}
+          shineFade={40}
+          thickness={1}
+          speed={0.35}
+          followMouse
+          proximity={250}
+          autoAnimate={false}
+          onClick={() => navigate("/login")}>
           Sign in
-        </button>
+        </SpecularButton>
       </nav>
 
       {/* Hero Content */}
@@ -163,7 +158,7 @@ export function Landing() {
         <div
           style={{
             fontSize: "clamp(3rem, 6vw, 5rem)",
-            fontWeight: 900,
+            fontWeight: 500,
             lineHeight: 1.05,
             letterSpacing: "-0.04em",
             color: "#ffffff",
@@ -172,7 +167,7 @@ export function Landing() {
           }}
         >
           <SplitText
-            text="Talk to strangers."
+            text="Meet someone new."
             tag="h1"
             className="landing-headline"
             splitType="chars"
@@ -191,7 +186,7 @@ export function Landing() {
         <div
           style={{
             fontSize: "clamp(3rem, 6vw, 5rem)",
-            fontWeight: 900,
+            fontWeight: 500,
             lineHeight: 1.05,
             letterSpacing: "-0.04em",
             color: "#ffffff",
@@ -215,13 +210,14 @@ export function Landing() {
           />
         </div>
 
-       <div style={{
-        width: "250px",
-        height: "250px",
-        marginTop: "8px",
-       }}>
+        <div style={{
+          width: "250px",
+          height: "250px",
+          marginTop: "8px",
+        }}>
+
+        </div>
        
-       </div>
 
       </div>
 

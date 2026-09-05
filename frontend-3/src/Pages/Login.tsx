@@ -1,3 +1,5 @@
+import SplitText from "../components/SplitText";
+
 export function Login() {
   const handleGoogleLogin = () => {
     window.location.href = "http://localhost:8080/api/auth/google";
@@ -7,7 +9,7 @@ export function Login() {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#0d0c15",
+        background: "#0d0c15",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -16,159 +18,147 @@ export function Login() {
         overflow: "hidden",
       }}
     >
-      {/* Background glow blobs */}
+      {/* Background glow */}
       <div
         style={{
           position: "absolute",
-          top: "-200px",
-          left: "-200px",
-          width: "600px",
-          height: "600px",
+          top: "-250px",
+          left: "-250px",
+          width: "650px",
+          height: "650px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "-200px",
-          right: "-200px",
-          width: "500px",
-          height: "500px",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(225,0,255,0.1) 0%, transparent 70%)",
+          background:
+            "radial-gradient(circle, rgba(168,85,247,0.16) 0%, transparent 70%)",
           pointerEvents: "none",
         }}
       />
 
-      {/* Card */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "-250px",
+          right: "-250px",
+          width: "600px",
+          height: "600px",
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(225,0,255,0.12) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Login Card */}
       <div
         style={{
           position: "relative",
           width: "100%",
           maxWidth: "420px",
-          background: "rgba(255,255,255,0.04)",
+          background: "rgba(255,255,255,0.045)",
           border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: "28px",
+          borderRadius: "24px",
           padding: "48px 40px",
           backdropFilter: "blur(24px)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)",
+          WebkitBackdropFilter: "blur(24px)",
+          boxShadow:
+            "0 32px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)",
         }}
       >
-        {/* Logo */}
+        {/* Heading */}
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            marginBottom: "40px",
+            textAlign: "center",
+            marginBottom: "36px",
           }}
         >
-          <div
+          <h1
             style={{
-              width: "44px",
-              height: "44px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #a855f7, #e100ff)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "20px",
-              boxShadow: "0 8px 24px rgba(168,85,247,0.4)",
-            }}
-          >
-            ⚡
-          </div>
-          <span
-            style={{
-              fontSize: "26px",
-              fontWeight: 800,
-              letterSpacing: "-0.03em",
+              fontSize: "28px",
+              fontWeight: 700,
               color: "#ffffff",
+              margin: 0,
+              marginBottom: "10px",
+              letterSpacing: "-0.03em",
             }}
           >
-            Yolo
-          </span>
+
+            <SplitText
+              text="Welcome to Yolo"
+              className="text-2xl font-semibold text-center"
+              delay={50}
+              duration={1.25}
+              ease="power3.out"
+              splitType="chars"
+              from={{ opacity: 0, y: 40 }}
+              to={{ opacity: 1, y: 0 }}
+              threshold={0.1}
+              rootMargin="-100px"
+              textAlign="center"
+             
+            />
+          </h1>
+
+          <p
+            style={{
+              fontSize: "15px",
+              color: "rgba(255,255,255,0.5)",
+              margin: 0,
+              lineHeight: 1.6,
+            }}
+          >
+            Sign in to meet someone new and start chatting.
+          </p>
         </div>
 
-        <h1
-          style={{
-            fontSize: "26px",
-            fontWeight: 700,
-            color: "#ffffff",
-            textAlign: "center",
-            marginBottom: "8px",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Welcome back
-        </h1>
-
-        <p
-          style={{
-            fontSize: "14px",
-            color: "rgba(255,255,255,0.45)",
-            textAlign: "center",
-            marginBottom: "40px",
-            lineHeight: 1.6,
-          }}
-        >
-          Sign in to meet someone new and start chatting instantly.
-        </p>
-
-        {/* Google Button */}
+        {/* Standard Google Button */}
         <button
           onClick={handleGoogleLogin}
           style={{
             width: "100%",
+            height: "52px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "12px",
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: "14px",
-            color: "#ffffff",
-            padding: "14px 24px",
-            fontSize: "15px",
-            fontWeight: 600,
+            gap: "14px",
+            background: "#ffffff",
+            border: "1px solid #dadce0",
+            borderRadius: "8px",
+            color: "#3c4043",
+            fontSize: "16px",
+            fontWeight: 500,
             cursor: "pointer",
-            transition: "all 0.25s ease",
-            letterSpacing: "-0.01em",
+            transition: "all 0.2s ease",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.13)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
-            e.currentTarget.style.transform = "translateY(-1px)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-            e.currentTarget.style.transform = "translateY(0)";
-          }}
+        
         >
-          {/* Google SVG */}
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path
-              fill="#EA4335"
-              d="M5.27 9.76A7.08 7.08 0 0 1 19.07 12.3h-7.11V9.88h9.58a9.64 9.64 0 0 1 .14 1.62c0 5.32-3.6 9.12-9.68 9.12A9.88 9.88 0 0 1 2.12 12a9.88 9.88 0 0 1 3.15-2.24Z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.27 9.76A9.88 9.88 0 0 0 2.12 12a9.88 9.88 0 0 0 9.88 9.62 9.53 9.53 0 0 0 6.54-2.38L15.1 16.6a6.16 6.16 0 0 1-3.1.8 7.08 7.08 0 0 1-6.73-4.9l-0-.74Z"
-            />
+          {/* Google G Logo */}
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+          >
             <path
               fill="#4285F4"
-              d="M21.56 10.12h-9.58V9.88h9.58Z"
+              d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.23a4.47 4.47 0 0 1-1.94 2.93v2.78h3.14c1.84-1.7 2.92-4.2 2.92-7.74Z"
             />
+
             <path
               fill="#34A853"
-              d="M11.9 4.5a9.88 9.88 0 0 0-6.63 2.58l3.5 2.68a6.16 6.16 0 0 1 9.3 2.54h.02l3.43-2.64A9.88 9.88 0 0 0 11.9 4.5Z"
+              d="M12 21.75c2.62 0 4.82-.87 6.43-2.36l-3.14-2.78c-.87.58-1.98.92-3.29.92-2.53 0-4.67-1.71-5.44-4.01H3.32v2.87A9.75 9.75 0 0 0 12 21.75Z"
+            />
+
+            <path
+              fill="#FBBC05"
+              d="M6.56 13.52a5.87 5.87 0 0 1 0-3.77V6.88H3.32a9.75 9.75 0 0 0 0 9.24l3.24-2.6Z"
+            />
+
+            <path
+              fill="#EA4335"
+              d="M12 5.47c1.42 0 2.69.49 3.69 1.45l2.77-2.77C16.82 2.62 14.62 1.75 12 1.75A9.75 9.75 0 0 0 3.32 7.12l3.24 2.63C7.33 7.18 9.47 5.47 12 5.47Z"
             />
           </svg>
-          Continue with Google
+
+          <span>Sign in with Google</span>
         </button>
 
         {/* Divider */}
@@ -177,27 +167,66 @@ export function Login() {
             display: "flex",
             alignItems: "center",
             gap: "16px",
-            margin: "28px 0",
+            margin: "32px 0 26px",
           }}
         >
-          <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }} />
-          <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.25)", letterSpacing: "0.05em" }}>
+          <div
+            style={{
+              flex: 1,
+              height: "1px",
+              background: "rgba(255,255,255,0.08)",
+            }}
+          />
+
+          <span
+            style={{
+              fontSize: "11px",
+              color: "rgba(255,255,255,0.3)",
+              letterSpacing: "0.12em",
+              fontWeight: 500,
+            }}
+          >
             SECURE SIGN IN
           </span>
-          <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }} />
+
+          <div
+            style={{
+              flex: 1,
+              height: "1px",
+              background: "rgba(255,255,255,0.08)",
+            }}
+          />
         </div>
 
+        {/* Terms */}
         <p
           style={{
             fontSize: "12px",
-            color: "rgba(255,255,255,0.25)",
+            color: "rgba(255,255,255,0.3)",
             textAlign: "center",
             lineHeight: 1.7,
+            margin: 0,
           }}
         >
           By continuing, you agree to Yolo's{" "}
-          <span style={{ color: "rgba(168,85,247,0.7)", cursor: "pointer" }}>Terms</span> and{" "}
-          <span style={{ color: "rgba(168,85,247,0.7)", cursor: "pointer" }}>Privacy Policy</span>.
+          <span
+            style={{
+              color: "rgba(168,85,247,0.85)",
+              cursor: "pointer",
+            }}
+          >
+            Terms
+          </span>{" "}
+          and{" "}
+          <span
+            style={{
+              color: "rgba(168,85,247,0.85)",
+              cursor: "pointer",
+            }}
+          >
+            Privacy Policy
+          </span>
+          .
         </p>
       </div>
     </div>
