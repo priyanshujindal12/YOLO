@@ -73,6 +73,7 @@ app.use("/api", apiRouter);
 io.on("connection", (socket) => {
   const userId = (socket.request as any).session?.userId;
   console.log("User connected:", socket.id);
+   console.log("Socket cookies:", socket.handshake.headers.cookie);
   console.log("User ID:", userId);
 
   if (!userId) {
