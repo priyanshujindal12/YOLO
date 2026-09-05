@@ -38,7 +38,7 @@ const socketRooms = new Map<string, string>();
 const app = express();
 app.use(
   cors({
-    origin: "https://yololive.fun",
+    origin: "https://www.yololive.fun",
     credentials: true,
   })
 );
@@ -54,11 +54,12 @@ const sessionMiddleware = session({
     maxAge: 1000 * 60 * 60 * 24 * 7,
   },
 });
+app.set("trust proxy", 1);
 app.use(sessionMiddleware);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-    cors: {
-      origin: "https://yololive.fun",
+          cors: {
+            origin: "https://www.yololive.fun",
     credentials: true,
   },
 });
@@ -309,7 +310,7 @@ socket.on(
 });
 });
 
-const PORT = 8080;
+const PORT = process.env.PORT;
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

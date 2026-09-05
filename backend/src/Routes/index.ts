@@ -31,6 +31,7 @@ apiRouter.get("/auth/google", (req, res) => {
   res.redirect(url);
 });
 apiRouter.get("/auth/google/callback", async (req, res) => {
+  console.log("Google callback received with query:", req.query);
   try {
     const { code } = req.query;
 
@@ -69,21 +70,25 @@ apiRouter.get("/auth/google/callback", async (req, res) => {
       },
     });
     req.session.userId = user.id;
-    return res.redirect("https://yololive.fun/home");
+    console.log("req.session.userId set to:", req.session.userId);
+    console.log("User authenticated:", user.id);
+    return res.redirect("https://www.yololive.fun/home");
   } catch (error) {
+    console.error("Google authentication failed:", error);
     return res.status(500).json({
       message: "Google authentication failed",
     });
   }
 });
 apiRouter.get("/auth/me", async (req, res) => {
+  console.log("Fetching user info for session:", req.session.userId);
   try {
     if (!req.session.userId) {
       return res.status(401).json({
         message: "Not authenticated",
       });
     }
-
+    console.log("Fetching user info for userId:", req.session.userId);
     const user = await prisma.user.findUnique({
       where: {
         id: req.session.userId,
