@@ -70,9 +70,23 @@ apiRouter.get("/auth/google/callback", async (req, res) => {
       },
     });
     req.session.userId = user.id;
+
     console.log("req.session.userId set to:", req.session.userId);
     console.log("User authenticated:", user.id);
-    return res.redirect("https://www.yololive.fun/home");
+
+    req.session.save((err) => {
+      if (err) {
+        console.error("Failed to save session:", err);
+
+        return res.status(500).json({
+          message: "Failed to save session",
+        });
+      }
+
+      console.log("Session saved:", req.sessionID);
+
+      return res.redirect("https://www.yololive.fun/home");
+    });
   } catch (error) {
     console.error("Google authentication failed:", error);
     return res.status(500).json({
