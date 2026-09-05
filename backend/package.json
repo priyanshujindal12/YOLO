@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-  "dev": "bun --watch src/index.ts",
+  "dev": " bunx prisma generate && bun --watch src/index.ts",
   "start": "bun run src/index.ts"
 },
   "devDependencies": {
