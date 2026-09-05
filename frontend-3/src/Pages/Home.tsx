@@ -19,7 +19,8 @@ export function Home() {
 
   const handleFindPartner = () => {
     if (!socket.connected) return;
-    socket.emit("find-partner");
+    // Send the user's first name so the partner can see who they matched with
+    socket.emit("find-partner", { name: user?.name?.split(" ")[0] ?? "Anonymous" });
     setStatus("searching");
   };
 
@@ -53,13 +54,19 @@ export function Home() {
     if (!user) return;
     if (!socket.connected) socket.connect();
 
-   const handlePartnerFound = (data: {roomId: string;initiator: boolean;}) => {
-  console.log("Partner found in Home:", data.roomId, "Initiator:", data.initiator);
+   const handlePartnerFound = (data: { roomId: string; initiator: boolean; partnerName?: string }) => {
+  console.log("Partner found in Home:", data.roomId, "Initiator:", data.initiator, "Partner:", data.partnerName);
   setStatus("found");
-  // Navigate immediately — no delay that widens the race window
   navigate(`/chat/${data.roomId}`, {
     state: {
       initiator: data.initiator,
+      partnerName: data.partnerName ?? "Stranger",
+      user: user
+        ? {
+            name: user.name,
+            profilePicture: user.profilePicture,
+          }
+        : undefined,
     },
   });
 };

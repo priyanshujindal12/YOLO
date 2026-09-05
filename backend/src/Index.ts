@@ -32,6 +32,7 @@ const cleanupRoom = (roomId: string) => {
 const waitingUsers: {
   socketId: string;
   userId: string;
+  name: string;
 }[] = [];
 const socketRooms = new Map<string, string>();
 const app = express();
@@ -107,8 +108,9 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("both-users-ready");
   }
 });
- socket.on("find-partner", () => {
-  console.log(`User ${userId} is looking for a partner`);
+ socket.on("find-partner", (payload?: { name?: string }) => {
+  const userName = payload?.name ?? "Anonymous";
+  console.log(`User ${userId} (${userName}) is looking for a partner`);
 
   const alreadyWaiting = waitingUsers.some(
     (waitingUser) => waitingUser.socketId === socket.id
@@ -122,6 +124,7 @@ io.on("connection", (socket) => {
   let partner: {
     socketId: string;
     userId: string;
+    name: string;
   } | undefined;
 
   let partnerSocket;
@@ -152,6 +155,7 @@ io.on("connection", (socket) => {
     waitingUsers.push({
       socketId: socket.id,
       userId,
+      name: userName,
     });
 
     console.log("User added to waiting queue");
@@ -162,7 +166,7 @@ io.on("connection", (socket) => {
   }
 
   const roomId = randomUUID();
- roomReadyUsers.set(roomId, new Set());
+  roomReadyUsers.set(roomId, new Set());
   socket.join(roomId);
   partnerSocket.join(roomId);
 
@@ -170,17 +174,20 @@ io.on("connection", (socket) => {
   socketRooms.set(partnerSocket.id, roomId);
 
   console.log(
-    `Matched ${userId} with ${partner.userId} in room ${roomId}`
+    `Matched ${userId} (${userName}) with ${partner.userId} (${partner.name}) in room ${roomId}`
   );
 
+  // Each user receives their partner's name
   socket.emit("partner-found", {
     roomId,
     initiator: true,
+    partnerName: partner.name,
   });
 
   partnerSocket.emit("partner-found", {
     roomId,
     initiator: false,
+    partnerName: userName,
   });
 });
   socket.on(
@@ -246,6 +253,18 @@ socket.on(
     }
 
     socket.to(roomId).emit("receive-message", message);
+  });
+
+  socket.on("camera-state", (data: { enabled: boolean }) => {
+    const roomId = socketRooms.get(socket.id);
+    if (!roomId) return;
+    socket.to(roomId).emit("partner-camera-state", data);
+  });
+
+  socket.on("mic-state", (data: { enabled: boolean }) => {
+    const roomId = socketRooms.get(socket.id);
+    if (!roomId) return;
+    socket.to(roomId).emit("partner-mic-state", data);
   });
  socket.on("leave-chat", () => {
   const roomId = socketRooms.get(socket.id);
