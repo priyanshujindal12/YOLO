@@ -17,23 +17,37 @@ type Message = {
 // ─── ICE servers: STUN + TURN ────────────────────────────────────────
 // TURN is required for peers behind symmetric NATs / carrier-grade NATs.
 // Replace the placeholder credentials with your TURN provider details.
+console.log("env",import.meta.env.VITE_TURN_USERNAME,import.meta.env.VITE_TURN_CREDENTIAL);
 const rtcConfiguration: RTCConfiguration = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    // ── TURN server (fill in your credentials) ──────────────────────
-    // Sign up at https://www.metered.ca/stun-turn for free TURN,
-    // or use any TURN provider and paste credentials here.
-    // {
-    //   urls: "turn:YOUR_TURN_SERVER:443?transport=tcp",
-    //   username: "YOUR_USERNAME",
-    //   credential: "YOUR_CREDENTIAL",
-    // },
-    // {
-    //   urls: "turns:YOUR_TURN_SERVER:443?transport=tcp",
-    //   username: "YOUR_USERNAME",
-    //   credential: "YOUR_CREDENTIAL",
-    // },
+    {
+      urls: "stun:stun.l.google.com:19302",
+    },
+    {
+      urls: "stun:stun1.l.google.com:19302",
+    },
+
+    // Metered TURN
+    {
+      urls: "turn:global.relay.metered.ca:80",
+      username: import.meta.env.VITE_TURN_USERNAME,
+      credential: import.meta.env.VITE_TURN_CREDENTIAL,
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: import.meta.env.VITE_TURN_USERNAME,
+      credential: import.meta.env.VITE_TURN_CREDENTIAL,
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443",
+      username: import.meta.env.VITE_TURN_USERNAME,
+      credential: import.meta.env.VITE_TURN_CREDENTIAL,
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: import.meta.env.VITE_TURN_USERNAME,
+      credential: import.meta.env.VITE_TURN_CREDENTIAL,
+    },
   ],
   iceCandidatePoolSize: 10,
 };
