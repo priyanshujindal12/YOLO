@@ -128,3 +128,47 @@
     @apply font-sans;
     }
 }
+
+/* ─── Chat page: safe-area & mobile polish ──────────────────────────── */
+
+/* Safe-area padding for notched phones (iPhone, Android punch-hole) */
+.chat-page {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.chat-header {
+  padding-left: max(1.25rem, env(safe-area-inset-left, 1.25rem));
+  padding-right: max(1.25rem, env(safe-area-inset-right, 1.25rem));
+}
+
+/* Floating chat button positioning — safe-area aware */
+.chat-fab {
+  bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem));
+  right: max(1.25rem, calc(env(safe-area-inset-right, 0px) + 1.25rem));
+}
+
+/* Pulse animation for unread messages */
+.chat-fab-unread {
+  animation: chat-fab-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes chat-fab-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(147, 51, 234, 0);
+  }
+}
+
+/* Chat video section — safe-area on mobile */
+.chat-video-section {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0.5rem));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0.5rem));
+}
+
+/* Chat drawer — safe-area padding at bottom for input */
+.chat-drawer aside {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

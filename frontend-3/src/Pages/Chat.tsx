@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { socket } from "../lib/socket";
 import { PhoneOff, MessageCircle, X } from "lucide-react";
@@ -14,11 +14,28 @@ type Message = {
   sender: "me" | "partner";
 };
 
+// ─── ICE servers: STUN + TURN ────────────────────────────────────────
+// TURN is required for peers behind symmetric NATs / carrier-grade NATs.
+// Replace the placeholder credentials with your TURN provider details.
 const rtcConfiguration: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    // ── TURN server (fill in your credentials) ──────────────────────
+    // Sign up at https://www.metered.ca/stun-turn for free TURN,
+    // or use any TURN provider and paste credentials here.
+    // {
+    //   urls: "turn:YOUR_TURN_SERVER:443?transport=tcp",
+    //   username: "YOUR_USERNAME",
+    //   credential: "YOUR_CREDENTIAL",
+    // },
+    // {
+    //   urls: "turns:YOUR_TURN_SERVER:443?transport=tcp",
+    //   username: "YOUR_USERNAME",
+    //   credential: "YOUR_CREDENTIAL",
+    // },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 export function Chat() {
@@ -38,6 +55,8 @@ export function Chat() {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [partnerCameraOn, setPartnerCameraOn] = useState(true);
   const [partnerMicOn, setPartnerMicOn] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const chatReadySentRef = useRef(false);
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -53,15 +72,25 @@ export function Chat() {
     isInitiatorRef.current = initiator;
   }, [initiator]);
 
-  const createPeerConnection = (): RTCPeerConnection | null => {
+  const createPeerConnection = useCallback((): RTCPeerConnection | null => {
     if (peerConnectionRef.current) return peerConnectionRef.current;
     const stream = localStreamRef.current;
-    if (!stream) return null;
+    if (!stream) {
+      console.warn("[webrtc] createPeerConnection called but no local stream");
+      return null;
+    }
 
+    console.log("[webrtc] Creating RTCPeerConnection");
     const pc = new RTCPeerConnection(rtcConfiguration);
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
+    // Add local tracks
+    const tracks = stream.getTracks();
+    console.log(`[webrtc] Adding ${tracks.length} local tracks:`, tracks.map(t => `${t.kind}:${t.enabled}`));
+    tracks.forEach((track) => pc.addTrack(track, stream));
+
+    // ── Remote track received ──────────────────────────────────────
     pc.ontrack = (e) => {
+      console.log(`[webrtc] ontrack: kind=${e.track.kind}, streams=${e.streams.length}`);
       const remoteStream = e.streams[0];
       if (remoteVideoRef.current && remoteStream) {
         remoteVideoRef.current.srcObject = remoteStream;
@@ -69,66 +98,112 @@ export function Chat() {
       }
     };
 
+    // ── ICE candidate generated ────────────────────────────────────
     pc.onicecandidate = (e) => {
-      if (e.candidate) socket.emit("ice-candidate", e.candidate.toJSON());
+      if (e.candidate) {
+        const c = e.candidate;
+        console.log(`[webrtc] ICE candidate: type=${c.type ?? "?"} protocol=${c.protocol ?? "?"} ${c.address ?? ""}:${c.port ?? ""}`);
+        socket.emit("ice-candidate", c.toJSON());
+      } else {
+        console.log("[webrtc] ICE gathering complete (null candidate)");
+      }
     };
 
+    // ── Connection state ────────────────────────────────────────────
     pc.onconnectionstatechange = () => {
+      console.log(`[webrtc] connectionState: ${pc.connectionState}`);
       if (pc.connectionState === "connected") setRemoteConnected(true);
       if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
         setRemoteConnected(false);
       }
     };
 
+    // ── ICE connection state ───────────────────────────────────────
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[webrtc] iceConnectionState: ${pc.iceConnectionState}`);
+      if (pc.iceConnectionState === "failed") {
+        console.error("[webrtc] ICE connection FAILED — likely need TURN server or network is blocking");
+      }
+    };
+
+    // ── ICE gathering state ────────────────────────────────────────
+    pc.onicegatheringstatechange = () => {
+      console.log(`[webrtc] iceGatheringState: ${pc.iceGatheringState}`);
+    };
+
+    // ── Signaling state ────────────────────────────────────────────
+    pc.onsignalingstatechange = () => {
+      console.log(`[webrtc] signalingState: ${pc.signalingState}`);
+    };
+
     peerConnectionRef.current = pc;
     return pc;
-  };
+  }, []);
 
   const flushPendingIce = async (pc: RTCPeerConnection) => {
     const list = [...pendingIceCandidatesRef.current];
     pendingIceCandidatesRef.current = [];
+    if (list.length > 0) {
+      console.log(`[webrtc] Flushing ${list.length} pending ICE candidates`);
+    }
     for (const candidate of list) {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      } catch (_) {}
+      } catch (err) {
+        console.warn("[webrtc] Failed to add queued ICE candidate:", err);
+      }
     }
   };
 
-  const createOffer = async () => {
+  const createOffer = useCallback(async () => {
+    console.log("[webrtc] Creating offer (initiator)");
     const pc = createPeerConnection();
-    if (!pc) return;
+    if (!pc) {
+      console.error("[webrtc] Cannot create offer — no peer connection (no local stream?)");
+      return;
+    }
     try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      console.log("[webrtc] Offer created and set as localDescription, emitting to peer");
       socket.emit("webrtc-offer", pc.localDescription);
     } catch (e) {
-      console.error("[webrtc] offer:", e);
+      console.error("[webrtc] Failed to create offer:", e);
     }
-  };
+  }, [createPeerConnection]);
 
-  const handleOffer = async (offer: RTCSessionDescriptionInit) => {
+  const handleOffer = useCallback(async (offer: RTCSessionDescriptionInit) => {
+    console.log("[webrtc] Received offer, creating answer (non-initiator)");
     const pc = createPeerConnection();
-    if (!pc) return;
+    if (!pc) {
+      console.error("[webrtc] Cannot handle offer — no peer connection (no local stream?)");
+      return;
+    }
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log("[webrtc] Remote description set (offer)");
       await flushPendingIce(pc);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+      console.log("[webrtc] Answer created and set as localDescription, emitting to peer");
       socket.emit("webrtc-answer", pc.localDescription);
     } catch (e) {
-      console.error("[webrtc] handle offer:", e);
+      console.error("[webrtc] Failed to handle offer:", e);
     }
-  };
+  }, [createPeerConnection]);
 
+  // ── Start camera ────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const startCamera = async () => {
+      console.log("[media] Requesting getUserMedia...");
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
           return;
         }
+        console.log("[media] getUserMedia succeeded:", stream.getTracks().map(t => `${t.kind}:${t.label}`));
         localStreamRef.current = stream;
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         cameraReadyRef.current = true;
@@ -139,7 +214,7 @@ export function Chat() {
           await handleOffer(pendingOffer);
         }
       } catch (e) {
-        console.error("[media] camera:", e);
+        console.error("[media] getUserMedia failed:", e);
       }
     };
 
@@ -154,42 +229,56 @@ export function Chat() {
       cameraReadyRef.current = false;
       pendingIceCandidatesRef.current = [];
       pendingOfferRef.current = null;
+      chatReadySentRef.current = false;
     };
-  }, []);
+  }, [handleOffer]);
 
+  // ── Socket event listeners ─────────────────────────────────────────
   useEffect(() => {
     const onPartnerLeft = () => navigate("/home");
     const onMessage = (msg: string) => {
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), text: msg, sender: "partner" }]);
+      // Track unread when chat drawer is closed (mobile)
+      setUnreadCount((prev) => prev + 1);
     };
     const onIce = async (candidate: RTCIceCandidateInit) => {
       const pc = peerConnectionRef.current;
       if (!pc || !pc.remoteDescription) {
+        console.log("[webrtc] Queuing ICE candidate (no remote description yet)");
         pendingIceCandidatesRef.current.push(candidate);
         return;
       }
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      } catch (_) {}
+      } catch (err) {
+        console.warn("[webrtc] Failed to add ICE candidate:", err);
+      }
     };
     const onOffer = async (offer: RTCSessionDescriptionInit) => {
+      console.log("[webrtc] Received offer from peer");
       if (!cameraReadyRef.current) {
+        console.log("[webrtc] Camera not ready, queuing offer");
         pendingOfferRef.current = offer;
         return;
       }
       await handleOffer(offer);
     };
     const onAnswer = async (answer: RTCSessionDescriptionInit) => {
+      console.log("[webrtc] Received answer from peer");
       const pc = peerConnectionRef.current;
       if (!pc) return;
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        console.log("[webrtc] Remote description set (answer)");
         await flushPendingIce(pc);
       } catch (e) {
-        console.error("[webrtc] answer:", e);
+        console.error("[webrtc] Failed to set answer:", e);
       }
     };
-    const onBothReady = () => setBothUsersReady(true);
+    const onBothReady = () => {
+      console.log("[signaling] Both users ready");
+      setBothUsersReady(true);
+    };
     const onPartnerCamera = (data: { enabled: boolean }) => setPartnerCameraOn(data.enabled);
     const onPartnerMic = (data: { enabled: boolean }) => setPartnerMicOn(data.enabled);
 
@@ -202,7 +291,8 @@ export function Chat() {
     socket.on("partner-camera-state", onPartnerCamera);
     socket.on("partner-mic-state", onPartnerMic);
 
-    socket.emit("chat-ready");
+    // NOTE: "chat-ready" is NOT emitted here anymore.
+    // It is emitted in a separate useEffect after cameraReady is true.
 
     return () => {
       socket.off("partner-left", onPartnerLeft);
@@ -214,13 +304,26 @@ export function Chat() {
       socket.off("partner-camera-state", onPartnerCamera);
       socket.off("partner-mic-state", onPartnerMic);
     };
-  }, [navigate]);
+  }, [navigate, handleOffer]);
 
+  // ── Emit "chat-ready" only after camera is ready ─────────────────
+  // This fixes the race where chat-ready was emitted before getUserMedia
+  // succeeded, causing the initiator to call createOffer with no stream.
+  useEffect(() => {
+    if (cameraReady && !chatReadySentRef.current) {
+      chatReadySentRef.current = true;
+      console.log("[signaling] Camera ready — emitting chat-ready");
+      socket.emit("chat-ready");
+    }
+  }, [cameraReady]);
+
+  // ── Create offer when both peers are ready (initiator only) ──────
   useEffect(() => {
     if (!cameraReady || !bothUsersReady || !isInitiatorRef.current || offerCreatedRef.current) return;
     offerCreatedRef.current = true;
+    console.log("[webrtc] Both ready + initiator → creating offer");
     createOffer();
-  }, [cameraReady, bothUsersReady]);
+  }, [cameraReady, bothUsersReady, createOffer]);
 
   const handleLeaveChat = () => {
     socket.emit("leave-chat");
@@ -252,16 +355,23 @@ export function Chat() {
   const userName = userProfile.name?.split(" ")[0] ?? "You";
   const userInitial = userName.charAt(0).toUpperCase();
 
+  // Clear unread count when chat drawer opens
+  const handleOpenChat = () => {
+    setIsChatOpen(true);
+    setUnreadCount(0);
+  };
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#08080f] text-white">
+    <div className="chat-page flex h-screen flex-col overflow-hidden bg-[#08080f] text-white">
+      {/* ── Ambient background ──────────────────────────────────── */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute -left-64 -top-64 h-[700px] w-[700px] rounded-full bg-purple-700/8 blur-[140px]" />
         <div className="absolute -bottom-64 -right-64 h-[700px] w-[700px] rounded-full bg-violet-700/8 blur-[140px]" />
       </div>
 
-      <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-white/[0.05] bg-black/30 px-5 py-3 backdrop-blur-xl">
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <header className="chat-header relative z-10 flex shrink-0 items-center justify-between border-b border-white/[0.05] bg-black/30 px-5 py-3 backdrop-blur-xl">
         <div className="flex items-center gap-2.5">
-          
           <span className="text-lg font-extrabold tracking-tight">Yolo</span>
         </div>
 
@@ -292,9 +402,11 @@ export function Chat() {
         </div>
       </header>
 
+      {/* ── Main content ────────────────────────────────────────── */}
       <div className="relative z-10 flex min-h-0 flex-1">
-        <section className="relative flex min-h-0 flex-1 flex-col p-2 lg:w-1/2 lg:flex-none lg:px-4 lg:py-4">
-          <div className="grid min-h-0 flex-1 grid-rows-2 gap-3">
+        {/* ── Video section ──────────────────────────────────────── */}
+        <section className="chat-video-section relative flex min-h-0 flex-1 flex-col p-2 lg:w-1/2 lg:flex-none lg:px-4 lg:py-4">
+          <div className="grid min-h-0 flex-1 grid-rows-2 gap-2 sm:gap-3">
             <VideoCard
               videoRef={remoteVideoRef}
               label="Stranger"
@@ -312,7 +424,7 @@ export function Chat() {
                 profilePicture={userProfile.profilePicture}
                 cameraOff={!isCameraOn}
               />
-              <div className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2">
+              <div className="chat-call-controls absolute bottom-3 left-1/2 z-20 -translate-x-1/2 sm:bottom-5">
                 <CallControls
                   isMicOn={isMicOn}
                   isCameraOn={isCameraOn}
@@ -324,6 +436,7 @@ export function Chat() {
           </div>
         </section>
 
+        {/* ── Desktop chat panel ─────────────────────────────────── */}
         <div className="hidden min-w-0 flex-1 lg:flex">
           <ChatPanel
             messages={messages}
@@ -338,42 +451,61 @@ export function Chat() {
           />
         </div>
 
+        {/* ── Mobile: floating chat button ───────────────────────── */}
         {!isChatOpen && (
           <Button
-            onClick={() => setIsChatOpen(true)}
+            onClick={handleOpenChat}
             size="icon"
-            className="absolute bottom-5 right-5 z-30 h-12 w-12 rounded-full bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-purple-500 lg:hidden"
+            className={`chat-fab absolute z-30 h-12 w-12 rounded-full bg-purple-600 text-white shadow-lg shadow-purple-900/40 hover:bg-purple-500 lg:hidden ${
+              unreadCount > 0 ? "chat-fab-unread" : ""
+            }`}
             title="Open chat"
           >
             <MessageCircle className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </Button>
         )}
 
-        {isChatOpen && (
-          <div className="absolute inset-y-0 right-0 z-40 w-[85%] max-w-sm border-l border-white/10 bg-[#0b0912]/95 shadow-2xl backdrop-blur-xl lg:hidden">
-            <div className="relative flex h-full flex-col">
-              <Button
-                onClick={() => setIsChatOpen(false)}
-                size="icon"
-                className="absolute right-3 top-3 z-50 h-9 w-9 rounded-full bg-white/10 hover:bg-white/20"
-                title="Close chat"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <ChatPanel
-                messages={messages}
-                message={message}
-                onMessageChange={setMessage}
-                onSend={handleSendMessage}
-                remoteConnected={remoteConnected}
-                partnerMicOn={partnerMicOn}
-                userName={userName}
-                userProfilePicture={userProfile.profilePicture}
-                partnerName={partnerName}
-              />
-            </div>
+        {/* ── Mobile: chat drawer backdrop ───────────────────────── */}
+        <div
+          className={`chat-drawer-backdrop fixed inset-0 z-30 bg-black/50 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+            isChatOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+          onClick={() => setIsChatOpen(false)}
+        />
+
+        {/* ── Mobile: chat drawer ────────────────────────────────── */}
+        <div
+          className={`chat-drawer fixed inset-y-0 right-0 z-40 w-[85%] max-w-sm border-l border-white/10 bg-[#0b0912]/95 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out lg:hidden ${
+            isChatOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <div className="relative flex h-full flex-col">
+            <Button
+              onClick={() => setIsChatOpen(false)}
+              size="icon"
+              className="absolute right-3 top-3 z-50 h-9 w-9 rounded-full bg-white/10 hover:bg-white/20"
+              title="Close chat"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <ChatPanel
+              messages={messages}
+              message={message}
+              onMessageChange={setMessage}
+              onSend={handleSendMessage}
+              remoteConnected={remoteConnected}
+              partnerMicOn={partnerMicOn}
+              userName={userName}
+              userProfilePicture={userProfile.profilePicture}
+              partnerName={partnerName}
+            />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
