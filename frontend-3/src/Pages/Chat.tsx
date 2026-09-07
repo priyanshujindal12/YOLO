@@ -16,8 +16,6 @@ type Message = {
 
 // ─── ICE servers: STUN + TURN ────────────────────────────────────────
 // TURN is required for peers behind symmetric NATs / carrier-grade NATs.
-// Replace the placeholder credentials with your TURN provider details.
-console.log("env",import.meta.env.VITE_TURN_USERNAME,import.meta.env.VITE_TURN_CREDENTIAL);
 const rtcConfiguration: RTCConfiguration = {
   iceServers: [
     {
@@ -86,6 +84,9 @@ export function Chat() {
     isInitiatorRef.current = initiator;
   }, [initiator]);
 
+  const iceRestartCountRef = useRef(0);
+  const maxIceRestarts = 2;
+
   const createPeerConnection = useCallback((): RTCPeerConnection | null => {
     if (peerConnectionRef.current) return peerConnectionRef.current;
     const stream = localStreamRef.current;
@@ -126,17 +127,36 @@ export function Chat() {
     // ── Connection state ────────────────────────────────────────────
     pc.onconnectionstatechange = () => {
       console.log(`[webrtc] connectionState: ${pc.connectionState}`);
-      if (pc.connectionState === "connected") setRemoteConnected(true);
+      if (pc.connectionState === "connected") {
+        setRemoteConnected(true);
+        iceRestartCountRef.current = 0; // reset on success
+      }
       if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
         setRemoteConnected(false);
       }
     };
 
-    // ── ICE connection state ───────────────────────────────────────
+    // ── ICE connection state — with automatic ICE restart ──────────
     pc.oniceconnectionstatechange = () => {
       console.log(`[webrtc] iceConnectionState: ${pc.iceConnectionState}`);
       if (pc.iceConnectionState === "failed") {
-        console.error("[webrtc] ICE connection FAILED — likely need TURN server or network is blocking");
+        if (iceRestartCountRef.current < maxIceRestarts) {
+          iceRestartCountRef.current++;
+          console.warn(`[webrtc] ICE failed — attempting ICE restart (${iceRestartCountRef.current}/${maxIceRestarts})`);
+          pc.restartIce();
+          // The initiator needs to create a new offer with iceRestart flag
+          if (isInitiatorRef.current) {
+            pc.createOffer({ iceRestart: true })
+              .then((offer) => pc.setLocalDescription(offer))
+              .then(() => {
+                console.log("[webrtc] ICE restart offer created and sent");
+                socket.emit("webrtc-offer", pc.localDescription);
+              })
+              .catch((err) => console.error("[webrtc] ICE restart offer failed:", err));
+          }
+        } else {
+          console.error(`[webrtc] ICE connection FAILED after ${maxIceRestarts} restart attempts`);
+        }
       }
     };
 
